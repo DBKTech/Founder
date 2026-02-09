@@ -10,14 +10,18 @@ return new class extends Migration {
      */
     public function up(): void
     {
-        Schema::create('tenants', function (Blueprint $table) {
+        Schema::create('customers', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+
             $table->string('name', 150);
-            $table->string('plan', 50)->default('free');     // free, pro, enterprise (later)
-            $table->string('status', 20)->default('active'); // active, suspended
+            $table->string('phone', 30)->nullable();
+            $table->string('email')->nullable();
+            $table->text('notes')->nullable();
+
             $table->timestamps();
 
-            $table->index('status');
+            $table->index(['tenant_id', 'phone']);
         });
     }
 
@@ -26,6 +30,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('tenants');
+        Schema::dropIfExists('customers');
     }
 };
