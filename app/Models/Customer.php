@@ -16,4 +16,9 @@ class Customer extends Model
         'email',
         'notes',
     ];
+
+    public function orders()
+    {
+        return $this->hasMany(\App\Models\Order::class);
+    }
 }
