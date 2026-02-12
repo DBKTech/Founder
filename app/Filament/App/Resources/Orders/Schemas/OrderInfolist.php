@@ -2,7 +2,9 @@
 
 namespace App\Filament\App\Resources\Orders\Schemas;
 
+use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class OrderInfolist
@@ -11,8 +13,6 @@ class OrderInfolist
     {
         return $schema
             ->components([
-                // tenant_id REMOVED (tak perlu show dekat seller)
-
                 TextEntry::make('order_no')
                     ->label('Order No'),
 
@@ -43,6 +43,48 @@ class OrderInfolist
                     ->label('Updated at')
                     ->dateTime()
                     ->placeholder('-'),
+
+                Section::make('Shipment Ops')
+                    ->schema([
+                        TextEntry::make('shipment.status')
+                            ->label('Shipment Status')
+                            ->placeholder('-'),
+
+                        TextEntry::make('shipment.courier_code')
+                            ->label('Courier')
+                            ->placeholder('-'),
+
+                        TextEntry::make('shipment.tracking_number')
+                            ->label('Tracking No.')
+                            ->copyable()
+                            ->copyMessage('Copied!')
+                            ->copyMessageDuration(1500)
+                            ->placeholder('-'),
+
+                        TextEntry::make('shipment.label_url')
+                            ->label('Label URL')
+                            ->placeholder('-')
+                            ->url(fn ($record) => $record->shipment?->label_url)
+                            ->openUrlInNewTab(),
+
+                        RepeatableEntry::make('shipment.events')
+                            ->label('Shipment Timeline')
+                            ->schema([
+                                TextEntry::make('occurred_at')
+                                    ->label('Time')
+                                    ->dateTime(),
+
+                                TextEntry::make('status')
+                                    ->label('Status'),
+
+                                TextEntry::make('description')
+                                    ->label('Note')
+                                    ->placeholder('-'),
+                            ])
+                            ->columns(3)
+                            ->visible(fn ($record) => (bool) $record->shipment?->exists),
+                    ])
+                    ->columns(3),
             ]);
     }
 }
