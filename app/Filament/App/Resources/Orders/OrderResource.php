@@ -35,7 +35,7 @@ class OrderResource extends Resource
         $tenantId = auth()->user()?->tenant_id;
 
         return parent::getEloquentQuery()
-            ->with(['shipment'])
+            ->with(['customer', 'shipment'])
             ->when($tenantId, fn(Builder $q) => $q->where('tenant_id', $tenantId));
     }
 
