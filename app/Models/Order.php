@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\OrderStatus;
 
 class Order extends Model
 {
@@ -16,6 +17,11 @@ class Order extends Model
         'status',
         'total',
         'ordered_at',
+    ];
+
+    protected $casts = [
+        'ordered_at' => 'datetime',
+        'status' => OrderStatus::class,
     ];
 
     public function customer()

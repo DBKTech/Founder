@@ -39,19 +39,4 @@ class Shipment extends Model
     {
         return $this->hasMany(ShipmentEvent::class)->orderBy('occurred_at');
     }
-
-    protected static function booted(): void
-    {
-        static::creating(function ($model) {
-            if (empty($model->tenant_id) && auth()->check()) {
-                $model->tenant_id = auth()->user()->tenant_id;
-            }
-        });
-
-        static::addGlobalScope('tenant', function ($query) {
-            if (auth()->check() && auth()->user()->tenant_id) {
-                $query->where('tenant_id', auth()->user()->tenant_id);
-            }
-        });
-    }
 }

@@ -26,4 +26,16 @@ enum OrderStatus: string
             self::Refunded => 'Refunded',
         };
     }
+
+    public function canTransitionTo(self $to): bool
+    {
+        return match ($this) {
+            self::Draft => in_array($to, [self::Paid, self::Cancelled]),
+            self::Paid => in_array($to, [self::Processing, self::Refunded]),
+            self::Processing => in_array($to, [self::Shipped, self::Cancelled]),
+            self::Shipped => in_array($to, [self::Delivered]),
+            default => false,
+        };
+    }
+
 }
