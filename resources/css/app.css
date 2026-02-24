@@ -9,3 +9,37 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
+
+/* Orders tabs color accents (Filament v5) */
+.orders-tab { --ot: 99 102 241; } /* default indigo-ish */
+
+.orders-tab--all       { --ot: 107 114 128; } /* gray */
+.orders-tab--completed { --ot: 34 197 94; }   /* green */
+.orders-tab--approved  { --ot: 59 130 246; }  /* blue */
+.orders-tab--pending   { --ot: 245 158 11; }  /* amber */
+.orders-tab--move      { --ot: 168 85 247; }  /* purple */
+.orders-tab--rejected  { --ot: 239 68 68; }   /* red */
+.orders-tab--cancelled { --ot: 100 116 139; } /* slate */
+.orders-tab--returned  { --ot: 20 184 166; }  /* teal */
+.orders-tab--draft     { --ot: 113 113 122; } /* zinc */
+.orders-tab--unprint   { --ot: 249 115 22; }  /* orange */
+
+/* target the clickable tab button inside Filament */
+.orders-tab [role="tab"] {
+  border-radius: 9999px;
+  padding: 6px 10px;
+}
+
+/* active state = ikut accent */
+.orders-tab [role="tab"][aria-selected="true"] {
+  color: rgb(var(--ot)) !important;
+  background: rgba(var(--ot), 0.10) !important;
+  border: 1px solid rgba(var(--ot), 0.25) !important;
+}
+
+/* badge follow accent when active (optional) */
+.orders-tab [role="tab"][aria-selected="true"] .fi-badge {
+  background: rgba(var(--ot), 0.14) !important;
+  border-color: rgba(var(--ot), 0.35) !important;
+  color: rgb(var(--ot)) !important;
+}

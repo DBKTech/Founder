@@ -25,7 +25,7 @@ class OrderForm
                         $tenantId = auth()->user()?->tenant_id;
 
                         return Customer::query()
-                            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+                            ->when($tenantId, fn($q) => $q->where('tenant_id', $tenantId))
                             ->orderBy('name')
                             ->pluck('name', 'id');
                     }),
@@ -37,12 +37,12 @@ class OrderForm
 
                 Select::make('status')
                     ->required()
-                    ->options([
-                        'draft' => 'Draft',
-                        'paid' => 'Paid',
-                        'cancelled' => 'Cancelled',
-                    ])
-                    ->default('draft'),
+                    ->options(
+                        collect(\App\Enums\OrderStatus::cases())
+                            ->mapWithKeys(fn($s) => [$s->value => $s->label()])
+                            ->all()
+                    )
+                    ->default(\App\Enums\OrderStatus::Draft->value),
 
                 TextInput::make('total')
                     ->required()

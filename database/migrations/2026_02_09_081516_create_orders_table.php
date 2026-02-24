@@ -17,7 +17,8 @@ return new class extends Migration {
             $table->foreignId('customer_id')->constrained()->cascadeOnDelete();
 
             $table->string('order_no', 50);
-            $table->string('status', 30)->default('draft'); // draft, paid, cancelled
+            $table->string('status', 30)->default('draft');
+            // draft, approved, unprint_awb, pending, on_the_move, completed, returned, rejected, cancelled
             $table->decimal('total', 10, 2)->default(0);
             $table->timestamp('ordered_at')->nullable();
 
