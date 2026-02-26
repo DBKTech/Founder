@@ -32,11 +32,12 @@ class OrderResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $tenantId = auth()->user()?->tenant_id;
+        $user = auth()->user();
 
         return parent::getEloquentQuery()
-            ->with(['customer', 'shipment'])
-            ->when($tenantId, fn(Builder $q) => $q->where('tenant_id', $tenantId));
+            ->with(['customer', 'shipment', 'items.product'])
+            ->when($user?->tenant_id, fn(Builder $q) => $q->where('tenant_id', $user->tenant_id))
+            ->when($user?->isSeller(), fn(Builder $q) => $q->where('placed_by_user_id', $user->id));
     }
 
 

@@ -33,4 +33,14 @@ class Order extends Model
     {
         return $this->hasOne(\App\Models\Shipment::class);
     }
+
+    public function items()
+    {
+        return $this->hasMany(\App\Models\OrderItem::class);
+    }
+
+    public function placedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'placed_by_user_id');
+    }
 }
