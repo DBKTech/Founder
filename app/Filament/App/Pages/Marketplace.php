@@ -12,6 +12,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Collection;
 use UnitEnum;
+use App\Models\MarketplaceListing;
 
 class Marketplace extends Page
 {
@@ -37,12 +38,12 @@ class Marketplace extends Page
         return 'marketplace_cart_tenant_' . auth()->user()->tenant_id . '_user_' . auth()->id();
     }
 
-    public function products(): Collection
+    public function listings(): \Illuminate\Database\Eloquent\Collection
     {
-        return Product::query()
-            ->where('tenant_id', auth()->user()->tenant_id)
-            ->where('status', 'active')
-            ->orderBy('name')
+        return MarketplaceListing::query()
+            ->published()
+            ->with('product')
+            ->orderByDesc('published_at')
             ->get();
     }
 
@@ -87,7 +88,7 @@ class Marketplace extends Page
             Action::make('checkout')
                 ->label('Checkout')
                 ->icon('heroicon-o-credit-card')
-                ->disabled(fn () => empty($this->cart))
+                ->disabled(fn() => empty($this->cart))
                 ->form([
                     TextInput::make('customer_name')->required(),
                     TextInput::make('customer_phone')->required(),
@@ -118,7 +119,7 @@ class Marketplace extends Page
                 ])
                 ->action(function (array $data) {
                     $items = collect($this->cart)
-                        ->map(fn ($qty, $productId) => [
+                        ->map(fn($qty, $productId) => [
                             'product_id' => (int) $productId,
                             'qty' => (int) $qty,
                         ])

@@ -92,10 +92,11 @@ class ProductForm
                 ->columnSpanFull(),
 
             FileUpload::make('primary_image_path')
-                ->label('Primary Image')
                 ->image()
+                ->disk('public')
                 ->directory('products')
-                ->imageEditor(),
+                ->visibility('public')
+                ->image()
         ]);
     }
 }

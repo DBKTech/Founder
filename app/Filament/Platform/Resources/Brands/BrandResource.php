@@ -13,12 +13,15 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class BrandResource extends Resource
 {
     protected static ?string $model = Brand::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static UnitEnum|string|null $navigationGroup = 'Marketplace';
+    protected static ?int $navigationSort = 1;
+    protected static ?string $navigationLabel = 'Brands';
 
     protected static ?string $recordTitleAttribute = 'name';
 
@@ -30,13 +33,6 @@ class BrandResource extends Resource
     public static function table(Table $table): Table
     {
         return BrandsTable::configure($table);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
     }
 
     public static function getPages(): array

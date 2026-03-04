@@ -22,6 +22,8 @@ class ProductsTable
 
                 ImageColumn::make('primary_image_path')
                     ->label('Image')
+                    ->disk('public') // penting!
+                    ->visibility('public') // optional tapi elok
                     ->square()
                     ->size(44),
 
