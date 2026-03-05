@@ -3,16 +3,22 @@
 namespace App\Filament\App\Pages;
 
 use App\Models\Product;
+use App\Models\Customer;
 use App\Services\MarketplaceOrderService;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Database\Eloquent\Collection;
 use UnitEnum;
 use App\Models\MarketplaceListing;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 
 class Marketplace extends Page
 {
@@ -82,6 +88,26 @@ class Marketplace extends Page
         session()->put($this->cartKey(), $this->cart);
     }
 
+    protected function isEastMalaysia(?string $postcode, ?string $state): bool
+    {
+        $postcode = preg_replace('/\D/', '', (string) $postcode); // digits only
+        $prefix2 = strlen($postcode) >= 2 ? (int) substr($postcode, 0, 2) : null;
+
+        // Postcode-based (standard Malaysia)
+        if ($prefix2 !== null) {
+            if ($prefix2 === 87)
+                return true; // Labuan
+            if ($prefix2 >= 88 && $prefix2 <= 91)
+                return true; // Sabah
+            if ($prefix2 >= 93 && $prefix2 <= 98)
+                return true; // Sarawak
+        }
+
+        // Fallback by state string
+        $state = strtoupper(trim((string) $state));
+        return in_array($state, ['SABAH', 'SARAWAK', 'LABUAN'], true);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
@@ -89,33 +115,180 @@ class Marketplace extends Page
                 ->label('Checkout')
                 ->icon('heroicon-o-credit-card')
                 ->disabled(fn() => empty($this->cart))
+                ->slideOver()
+                ->modalWidth('2xl')
+                ->modalSubmitActionLabel('Checkout')
                 ->form([
-                    TextInput::make('customer_name')->required(),
-                    TextInput::make('customer_phone')->required(),
+                    Section::make('BUYER INFORMATION')
+                        ->schema([
+                            // ✅ Small box inside checkout
+                            Section::make('Entry Mode')
+                                ->compact()
+                                ->schema([
+                                    ToggleButtons::make('entry_mode')
+                                        ->label('')
+                                        ->options([
+                                            'manual' => 'Manual',
+                                            'fast_entry' => 'Fast Entry',
+                                            'myself' => 'Myself',
+                                        ])
+                                        ->inline()
+                                        ->default('manual')
+                                        ->live()
+                                        ->afterStateUpdated(function (Set $set, Get $get, ?string $state) {
+                                            // whenever mode changes -> reset source selector
+                                            $set('customer_id', null);
 
-                    TextInput::make('address_1')->label('Address')->required(),
-                    TextInput::make('city')->required(),
-                    TextInput::make('state')->required(),
-                    TextInput::make('postcode')->required(),
+                                            // If switch to manual: clear auto-filled fields (optional)
+                                            if ($state === 'manual') {
+                                                $set('name', null);
+                                                $set('phone', null);
+                                                $set('email', null);
+                                                $set('address', null);
+                                                $set('postcode', null);
+                                                $set('city', null);
+                                                $set('state', null);
+                                                return;
+                                            }
 
-                    Select::make('price_tier')
-                        ->options(['AP' => 'AP', 'SP' => 'SP'])
-                        ->default('SP')
-                        ->required(),
+                                            // If switch to myself: fill from logged user
+                                            if ($state === 'myself') {
+                                                $user = auth()->user();
+                                                $set('name', $user?->name);
+                                                $set('email', $user?->email);
+                                                // kalau user ada phone:
+                                                // $set('phone', $user?->phone);
+                                
+                                                return;
+                                            }
 
-                    Select::make('payment_method')
-                        ->options([
-                            'bank_transfer' => 'Bank Transfer',
-                            'qr' => 'QR',
-                            'cod' => 'COD',
-                        ])
-                        ->default('bank_transfer')
-                        ->required(),
+                                            // fast_entry: do nothing here, wait user select customer
+                                        }),
 
-                    TextInput::make('payment_ref')
-                        ->label('Payment Ref (optional)')
-                        ->helperText('Example: last 4 digits / reference no.')
-                        ->maxLength(100),
+                                    // ✅ only appears when Fast Entry selected
+                                    Select::make('customer_id')
+                                        ->label('')
+                                        ->placeholder('Search Previous Customer...')
+                                        ->searchable()
+                                        ->native(false)
+                                        ->live()
+                                        ->visible(fn(Get $get) => $get('entry_mode') === 'fast_entry')
+                                        ->getSearchResultsUsing(function (string $search): array {
+                                            $tenantId = auth()->user()->tenant_id;
+
+                                            return Customer::query()
+                                                ->where('tenant_id', $tenantId)
+                                                ->where(function ($q) use ($search) {
+                                                    $q->where('name', 'like', "%{$search}%")
+                                                        ->orWhere('phone', 'like', "%{$search}%")
+                                                        ->orWhere('email', 'like', "%{$search}%");
+                                                })
+                                                ->limit(25)
+                                                ->get()
+                                                ->mapWithKeys(fn(Customer $c) => [
+                                                    $c->id => trim(($c->name ?? '') . ' — ' . ($c->phone ?? '')),
+                                                ])
+                                                ->all();
+                                        })
+                                        ->afterStateUpdated(function (Set $set, Get $get, $state) {
+                                            if (!$state) {
+                                                return;
+                                            }
+
+                                            // guard: only fill when in fast_entry
+                                            if ($get('entry_mode') !== 'fast_entry') {
+                                                return;
+                                            }
+
+                                            $customer = Customer::query()
+                                                ->where('tenant_id', auth()->user()->tenant_id)
+                                                ->find($state);
+
+                                            if (!$customer) {
+                                                return;
+                                            }
+
+                                            $set('name', $customer->name);
+                                            $set('phone', $customer->phone);
+                                            $set('email', $customer->email);
+
+                                            // If you store address fields in Customer, you can auto-fill too:
+                                            // $set('address', $customer->address);
+                                            // $set('postcode', $customer->postcode);
+                                            // $set('city', $customer->city);
+                                            // $set('state', $customer->state);
+                                        }),
+                                ]),
+
+                            // ✅ Main buyer form fields (manual / auto-filled)
+                            TextInput::make('name')->label('Name')->required(),
+
+                            Grid::make(2)->schema([
+                                TextInput::make('phone')->label('Phone')->tel()->required(),
+                                TextInput::make('email')->label('Email')->email()->nullable(),
+                            ]),
+
+                            TextInput::make('address')->label('Address')->required(),
+
+                            TextInput::make('postcode')
+                                ->label('Postcode')
+                                ->required()
+                                ->live()
+                                ->afterStateUpdated(function (Set $set) {
+                                    $set('shipping_method', null);
+                                    $set('shipping_type', null);
+                                }),
+
+                            Grid::make(2)->schema([
+                                TextInput::make('city')->label('City')->required(),
+                                TextInput::make('state')
+                                    ->label('State')
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function (Set $set) {
+                                        $set('shipping_method', null);
+                                        $set('shipping_type', null);
+                                    }),
+                            ]),
+                        ]),
+
+                    Section::make('SHIPPING & PAYMENT')
+                        ->schema([
+                            Select::make('shipping_method')
+                                ->label('Shipping Method')
+                                ->placeholder('Please enter postcode and state first.')
+                                ->native(false)
+                                ->required()
+                                ->live()
+                                ->disabled(fn(Get $get) => blank($get('postcode')) || blank($get('state')))
+                                ->options(function (Get $get) {
+                                    $isEast = $this->isEastMalaysia($get('postcode'), $get('state'));
+
+                                    $normal = $isEast ? 10 : 0;   // Sabah/Sarawak/Labuan
+                                    $cod = $isEast ? 20 : 10;  // Sabah/Sarawak/Labuan
+                        
+                                    return [
+                                        'pos_malaysia' => "Pos Malaysia - Normal: RM {$normal}.00, COD: RM {$cod}.00",
+                                        'self_collect' => 'Self Collect',
+                                    ];
+                                })
+                                ->afterStateUpdated(function (Set $set) {
+                                    $set('shipping_type', null);
+                                }),
+
+                            // Only show when Pos Malaysia selected
+                            Select::make('shipping_type')
+                                ->label('Shipping Type')
+                                ->native(false)
+                                ->placeholder('Please select')
+                                ->required(fn(Get $get) => $get('shipping_method') === 'pos_malaysia')
+                                ->visible(fn(Get $get) => $get('shipping_method') === 'pos_malaysia')
+                                ->options([
+                                    'cod' => 'Cash On Delivery',
+                                    'normal' => 'Normal',
+                                    'third_party' => 'Third Party Platform',
+                                ]),
+                        ]),
                 ])
                 ->action(function (array $data) {
                     $items = collect($this->cart)
@@ -126,24 +299,39 @@ class Marketplace extends Page
                         ->values()
                         ->all();
 
+                    $paymentMethod = 'bank_transfer';
+                    if (($data['shipping_method'] ?? null) === 'pos_malaysia') {
+                        $paymentMethod = match ($data['shipping_type'] ?? null) {
+                            'cod' => 'cod',
+                            default => 'bank_transfer', // normal / third_party -> treat as non-COD
+                        };
+                    }
+
                     $payload = [
                         'tenant_id' => auth()->user()->tenant_id,
                         'placed_by_user_id' => auth()->id(),
-                        'price_tier' => $data['price_tier'],
-                        'payment_method' => $data['payment_method'],
-                        'payment_ref' => $data['payment_ref'] ?? null,
+                        'price_tier' => 'SP',
+                        'payment_method' => $paymentMethod,
+                        'payment_ref' => null,
+
                         'customer' => [
-                            'name' => $data['customer_name'],
-                            'phone' => $data['customer_phone'],
+                            'name' => $data['name'],
+                            'phone' => $data['phone'],
+                            'email' => $data['email'] ?? null,
                         ],
+
                         'shipping' => [
-                            'name' => $data['customer_name'],
-                            'phone' => $data['customer_phone'],
-                            'address_1' => $data['address_1'],
+                            'name' => $data['name'],
+                            'phone' => $data['phone'],
+                            'address_1' => $data['address'],
                             'city' => $data['city'],
                             'state' => $data['state'],
                             'postcode' => $data['postcode'],
+                            'method' => $data['shipping_method'] ?? null,
+                            'type' => $data['shipping_type'] ?? null,
                         ],
+
+                        'shipping_payment' => $data['shipping_payment'] ?? null,
                         'items' => $items,
                     ];
 
