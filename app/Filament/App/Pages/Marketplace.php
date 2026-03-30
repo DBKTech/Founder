@@ -173,6 +173,7 @@ class Marketplace extends Page
                                         ->native(false)
                                         ->live()
                                         ->visible(fn(Get $get) => $get('entry_mode') === 'fast_entry')
+
                                         ->getSearchResultsUsing(function (string $search): array {
                                             $tenantId = auth()->user()->tenant_id;
 
@@ -190,12 +191,29 @@ class Marketplace extends Page
                                                 ])
                                                 ->all();
                                         })
+
+                                        // FIX: Filament needs this to validate selected option
+                                        ->getOptionLabelUsing(function ($value): ?string {
+                                            if (!$value) {
+                                                return null;
+                                            }
+
+                                            $customer = Customer::query()
+                                                ->where('tenant_id', auth()->user()->tenant_id)
+                                                ->find($value);
+
+                                            if (!$customer) {
+                                                return null;
+                                            }
+
+                                            return trim(($customer->name ?? '') . ' — ' . ($customer->phone ?? ''));
+                                        })
+
                                         ->afterStateUpdated(function (Set $set, Get $get, $state) {
                                             if (!$state) {
                                                 return;
                                             }
 
-                                            // guard: only fill when in fast_entry
                                             if ($get('entry_mode') !== 'fast_entry') {
                                                 return;
                                             }
@@ -211,12 +229,6 @@ class Marketplace extends Page
                                             $set('name', $customer->name);
                                             $set('phone', $customer->phone);
                                             $set('email', $customer->email);
-
-                                            // If you store address fields in Customer, you can auto-fill too:
-                                            // $set('address', $customer->address);
-                                            // $set('postcode', $customer->postcode);
-                                            // $set('city', $customer->city);
-                                            // $set('state', $customer->state);
                                         }),
                                 ]),
 
@@ -344,7 +356,7 @@ class Marketplace extends Page
                         ->success()
                         ->send();
 
-                    $this->redirectRoute('filament.app.resources.orders.index');
+                    return redirect("/app/order-checkout/{$order->id}");
                 }),
         ];
     }

@@ -35,6 +35,8 @@ class AppPanelProvider extends PanelProvider
             ->discoverPages(in: app_path('Filament/App/Pages'), for: 'App\Filament\App\Pages')
             ->pages([
                 Dashboard::class,
+                \App\Filament\App\Pages\OrderCheckout::class,
+                \App\Filament\App\Pages\OrderSummary::class,
             ])
             ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\Filament\App\Widgets')
             ->widgets([

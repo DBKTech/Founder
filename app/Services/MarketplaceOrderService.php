@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\Shipment;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -25,7 +26,7 @@ class MarketplaceOrderService
                 ->where('phone', $payload['customer']['phone'])
                 ->first();
 
-            if (! $customer) {
+            if (!$customer) {
                 $customer = Customer::create([
                     'tenant_id' => $tenantId,
                     'name' => $payload['customer']['name'],
@@ -63,6 +64,23 @@ class MarketplaceOrderService
                 'total' => 0,
 
                 'ordered_at' => now(),
+            ]);
+            
+            Shipment::create([
+                'tenant_id' => $tenantId,
+                'order_id' => $order->id,
+                'status' => 'pending',
+                'meta' => [
+                    'name' => data_get($payload, 'shipping.name'),
+                    'phone' => data_get($payload, 'shipping.phone'),
+                    'address_1' => data_get($payload, 'shipping.address_1'),
+                    'city' => data_get($payload, 'shipping.city'),
+                    'state' => data_get($payload, 'shipping.state'),
+                    'postcode' => data_get($payload, 'shipping.postcode'),
+                    'method' => data_get($payload, 'shipping.method'),
+                    'type' => data_get($payload, 'shipping.type'),
+                    'shipping_payment' => $payload['shipping_payment'] ?? null,
+                ],
             ]);
 
             // 4) Create items

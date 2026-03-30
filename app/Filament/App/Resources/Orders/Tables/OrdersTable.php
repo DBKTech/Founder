@@ -19,7 +19,7 @@ class OrdersTable
                     ->label(view('filament.orders.board-header'))
                     ->view('filament.orders.board-row')
                     ->grow()
-                    ->extraHeaderAttributes(['class' => '!p-0 !align-top'])
+                    ->extraHeaderAttributes(['class' => ' !align-top'])
                     ->extraCellAttributes(['class' => '!p-0 w-full !align-top'])
                     ->extraAttributes(['class' => 'w-full']),
             ]);
