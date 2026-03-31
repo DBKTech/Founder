@@ -44,6 +44,11 @@ class Order extends Model
         return $this->belongsTo(Tenant::class);
     }
 
+    public function payments()
+    {
+        return $this->hasMany(\App\Models\Payment::class);
+    }
+    
     public function getSummaryItemsAttribute(): string
     {
         // make sure items loaded (OrderResource already eager loads items.product)

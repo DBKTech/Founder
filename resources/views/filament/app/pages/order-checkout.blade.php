@@ -219,110 +219,117 @@
                     </div>
                 </div>
             @else
-                {{-- Normal / Self collect / Third party --}}
-                <div class="space-y-4 rounded-xl border p-4 bg-white">
-                    <div class="font-semibold">Payment Methods</div>
+                    {{-- Normal / Self collect / Third party --}}
+                    <div class="space-y-4 rounded-xl border p-4 bg-white">
+                        <div class="font-semibold">Payment Methods</div>
 
-                    @if($isThirdParty)
-                        <div>
-                            <label class="text-sm font-medium">Third Party Platform</label>
-                            <select class="mt-1 w-full rounded-lg border p-2">
-                                <option value="">Please select</option>
-                                <option value="shopee">Shopee</option>
-                                <option value="tiktok">TikTok</option>
-                                <option value="lazada">Lazada</option>
-                                <option value="others">Others</option>
-                            </select>
-                        </div>
-                    @endif
-
-                    <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
-                        <button type="button" wire:click="selectPaymentMethod('fpx')"
-                            class="rounded-lg border p-3 text-sm font-semibold transition
-                    {{ $selectedPaymentMethod === 'fpx' ? 'border-black bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50' }}">
-                            FPX
-                        </button>
-
-                        <button type="button" wire:click="selectPaymentMethod('card')"
-                            class="rounded-lg border p-3 text-sm font-semibold transition
-                    {{ $selectedPaymentMethod === 'card' ? 'border-black bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50' }}">
-                            Card / VISA
-                        </button>
-
-                        <button type="button" wire:click="selectPaymentMethod('wallet')"
-                            class="rounded-lg border p-3 text-sm font-semibold transition
-                    {{ $selectedPaymentMethod === 'wallet' ? 'border-black bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50' }}">
-                            Wallet
-                        </button>
-
-                        <button type="button" wire:click="selectPaymentMethod('bank_transfer')"
-                            class="rounded-lg border p-3 text-sm font-semibold transition
-                    {{ $selectedPaymentMethod === 'bank_transfer' ? 'border-black bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50' }}">
-                            Bank Transfer
-                        </button>
-                    </div>
-
-                    @if($selectedPaymentMethod === 'fpx')
-                        <div class="rounded-lg border bg-gray-50 p-4 text-sm text-gray-700">
-                            You selected <span class="font-semibold">FPX</span>. User will proceed with online banking payment
-                            flow.
-                        </div>
-                    @endif
-
-                    @if($selectedPaymentMethod === 'card')
-                        <div class="rounded-lg border bg-gray-50 p-4 text-sm text-gray-700">
-                            You selected <span class="font-semibold">Card / VISA</span>. User will proceed with card payment
-                            flow.
-                        </div>
-                    @endif
-
-                    @if($selectedPaymentMethod === 'wallet')
-                        <div class="rounded-lg border bg-gray-50 p-4 text-sm text-gray-700">
-                            You selected <span class="font-semibold">Wallet</span>. Payment will be deducted from the user's
-                            system wallet balance.
-                        </div>
-                    @endif
-
-                    @if($selectedPaymentMethod === 'bank_transfer')
-                        <div class="rounded-lg border bg-gray-50 p-4 space-y-4">
-                            <div class="font-semibold">HQ Bank Account</div>
-
-                            <div class="space-y-1 text-sm">
-                                <div><span class="font-medium">Bank:</span> {{ config('company.bank_name') }}</div>
-                                <div><span class="font-medium">Account Name:</span> {{ config('company.bank_account_name') }}
-                                </div>
-                                <div><span class="font-medium">Account No:</span> {{ config('company.bank_account_no') }}</div>
-                            </div>
-
+                        @if($isThirdParty)
                             <div>
-                                <label class="mb-1 block text-sm font-medium">Reference No</label>
-                                <input type="text" wire:model.defer="bankTransferReference"
-                                    class="w-full rounded-lg border px-3 py-2 text-sm"
-                                    placeholder="Enter transfer reference number">
+                                <label class="text-sm font-medium">Third Party Platform</label>
+                                <select class="mt-1 w-full rounded-lg border p-2">
+                                    <option value="">Please select</option>
+                                    <option value="shopee">Shopee</option>
+                                    <option value="tiktok">TikTok</option>
+                                    <option value="lazada">Lazada</option>
+                                    <option value="others">Others</option>
+                                </select>
                             </div>
+                        @endif
 
-                            <div>
-                                <label class="mb-1 block text-sm font-medium">Upload Proof of Payment</label>
-                                <input type="file" wire:model="bankTransferProof"
-                                    class="w-full rounded-lg border px-3 py-2 text-sm">
+                        <div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+                            <button type="button" wire:click="selectPaymentMethod('fpx')"
+                                class="rounded-lg border p-3 text-sm font-semibold transition flex items-center gap-3
+                                {{ $selectedPaymentMethod === 'fpx' ? 'border-black bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50' }}">
 
-                                <div class="mt-1 text-xs text-gray-500">
-                                    Upload screenshot, image, or PDF proof of transfer.
+                                <img src="{{ asset('images/payments/fpx-logo.png') }}" class="h-6 w-auto mx-auto" alt="FPX">
+                            </button>
+
+                            <button type="button" disabled
+                                class="rounded-lg border border-gray-200 bg-gray-100 p-3 text-sm font-semibold text-gray-400 cursor-not-allowed">
+
+                                <img src="{{ asset('images/payments/visa-logo.png') }}" class="h-6 w-auto mx-auto" alt="VISA/Mastercard">
+
+                                (Coming Soon)
+                            </button>
+
+                            <button type="button" wire:click="selectPaymentMethod('wallet')" class="rounded-lg border p-3 text-sm font-semibold transition
+                                                    {{ $selectedPaymentMethod === 'wallet'
+                ? 'border-black bg-gray-100'
+                : 'border-gray-300 bg-white hover:bg-gray-50' }}">
+
+                                <img src="{{ asset('images/payments/wallet-logo.png') }}" class="h-6 w-auto mx-auto" alt="Wallet">
+
+                                RM {{ number_format($walletBalance ?? 0, 2) }}
+                            </button>
+
+                            <button type="button" wire:click="selectPaymentMethod('bank_transfer')"
+                                class="rounded-lg border p-3 text-sm font-semibold transition
+                                                                                                        {{ $selectedPaymentMethod === 'bank_transfer' ? 'border-black bg-gray-100' : 'border-gray-300 bg-white hover:bg-gray-50' }}">
+                                Bank Transfer
+                            </button>
+                        </div>
+
+                        @if($selectedPaymentMethod === 'fpx')
+                            <div class="rounded-lg border bg-gray-50 p-4 text-sm text-gray-700">
+                                You selected <span class="font-semibold">FPX</span>. User will proceed with online banking payment
+                                flow.
+                            </div>
+                        @endif
+
+                        @if($selectedPaymentMethod === 'card')
+                            <div class="rounded-lg border bg-gray-50 p-4 text-sm text-gray-700">
+                                You selected <span class="font-semibold">Card / VISA</span>. User will proceed with card payment
+                                flow.
+                            </div>
+                        @endif
+
+                        @if($selectedPaymentMethod === 'wallet')
+                            <div class="rounded-lg border bg-gray-50 p-4 text-sm text-gray-700">
+                                You selected <span class="font-semibold">Wallet</span>. Payment will be deducted from the user's
+                                system wallet balance.
+                            </div>
+                        @endif
+
+                        @if($selectedPaymentMethod === 'bank_transfer')
+                            <div class="rounded-lg border bg-gray-50 p-4 space-y-4">
+                                <div class="font-semibold">HQ Bank Account</div>
+
+                                <div class="space-y-1 text-sm">
+                                    <div><span class="font-medium">Bank:</span> {{ config('company.bank_name') }}</div>
+                                    <div><span class="font-medium">Account Name:</span> {{ config('company.bank_account_name') }}
+                                    </div>
+                                    <div><span class="font-medium">Account No:</span> {{ config('company.bank_account_no') }}</div>
                                 </div>
 
-                                @error('bankTransferProof')
-                                    <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
-                                @enderror
-                            </div>
-                        </div>
-                    @endif
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium">Reference No</label>
+                                    <input type="text" wire:model.defer="bankTransferReference"
+                                        class="w-full rounded-lg border px-3 py-2 text-sm"
+                                        placeholder="Enter transfer reference number">
+                                </div>
 
-                    <div class="flex justify-end">
-                        <x-filament::button type="button" wire:click="submitPayment">
-                            Continue Payment
-                        </x-filament::button>
+                                <div>
+                                    <label class="mb-1 block text-sm font-medium">Upload Proof of Payment</label>
+                                    <input type="file" wire:model="bankTransferProof"
+                                        class="w-full rounded-lg border px-3 py-2 text-sm">
+
+                                    <div class="mt-1 text-xs text-gray-500">
+                                        Upload screenshot, image, or PDF proof of transfer.
+                                    </div>
+
+                                    @error('bankTransferProof')
+                                        <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="flex justify-end">
+                            <x-filament::button type="button" wire:click="submitPayment">
+                                Continue Payment
+                            </x-filament::button>
+                        </div>
                     </div>
-                </div>
             @endif
         </div>
 </x-filament-panels::page>

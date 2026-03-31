@@ -12,8 +12,16 @@ class WalletTransaction extends Model
         'order_id',
         'type',
         'amount',
+        'balance_before',
+        'balance_after',
         'reference',
         'remarks',
+        'status',
+        'meta',
+    ];
+
+    protected $casts = [
+        'meta' => 'array',
     ];
 
     public function wallet(): BelongsTo

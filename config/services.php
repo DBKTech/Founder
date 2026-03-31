@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'billplz' => [
+        'api_key' => env('BILLPLZ_API_KEY'),
+        'x_signature' => env('BILLPLZ_X_SIGNATURE'),
+        'collection_id' => env('BILLPLZ_COLLECTION_ID'),
+        'base_url' => env('BILLPLZ_BASE_URL', 'https://www.billplz.com/api/v3'),
+        'card_gateway_code' => env('BILLPLZ_CARD_GATEWAY_CODE', 'BP-BILLPLZ1'),
+    ],
 ];

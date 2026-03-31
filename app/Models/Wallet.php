@@ -14,6 +14,11 @@ class Wallet extends Model
         'balance',
     ];
 
+    protected $casts = [
+        'balance' => 'decimal:2',
+        'is_active' => 'boolean',
+    ];
+    
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class);
