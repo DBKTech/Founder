@@ -12,7 +12,7 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\ToggleButtons;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 use UnitEnum;
 use App\Models\MarketplaceListing;
 use Filament\Schemas\Components\Grid;
@@ -44,15 +44,17 @@ class Marketplace extends Page
         return 'marketplace_cart_tenant_' . auth()->user()->tenant_id . '_user_' . auth()->id();
     }
 
-    public function listings(): \Illuminate\Database\Eloquent\Collection
+    public function listings(): Collection
     {
-        return MarketplaceListing::query()
-            ->published()
-            ->with('product')
-            ->orderByDesc('published_at')
-            ->get();
+        return Product::query()
+            ->latest()
+            ->get()
+            ->map(function ($product) {
+                return (object) [
+                    'product' => $product,
+                ];
+            });
     }
-
     public function addToCart(int $productId): void
     {
         $this->cart[$productId] = ($this->cart[$productId] ?? 0) + 1;

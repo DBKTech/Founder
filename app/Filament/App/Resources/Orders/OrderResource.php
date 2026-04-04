@@ -10,23 +10,16 @@ use App\Filament\App\Resources\Orders\Schemas\OrderForm;
 use App\Filament\App\Resources\Orders\Schemas\OrderInfolist;
 use App\Filament\App\Resources\Orders\Tables\OrdersTable;
 use App\Models\Order;
-use BackedEnum;
-use UnitEnum;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 
 class OrderResource extends Resource
 {
     protected static ?string $model = Order::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
-    protected static ?string $navigationLabel = 'Orders';
-    protected static string|UnitEnum|null $navigationGroup = 'Sales';
-    protected static ?int $navigationSort = 2;
+    protected static bool $shouldRegisterNavigation = false;
 
     protected static ?string $recordTitleAttribute = 'order_no';
 
@@ -36,10 +29,9 @@ class OrderResource extends Resource
 
         return parent::getEloquentQuery()
             ->with(['customer', 'shipment', 'items.product'])
-            ->when($user?->tenant_id, fn(Builder $q) => $q->where('tenant_id', $user->tenant_id))
-            ->when($user?->isSeller(), fn(Builder $q) => $q->where('placed_by_user_id', $user->id));
+            ->when($user?->tenant_id, fn (Builder $q) => $q->where('tenant_id', $user->tenant_id))
+            ->when($user?->isSeller(), fn (Builder $q) => $q->where('placed_by_user_id', $user->id));
     }
-
 
     public static function form(Schema $schema): Schema
     {
@@ -58,9 +50,7 @@ class OrderResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
