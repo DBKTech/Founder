@@ -14,9 +14,37 @@ class Order extends Model
 
     protected $guarded = [];
 
+    protected $fillable = [
+        'tenant_id',
+        'source',
+        'external_id',
+        'customer_id',
+        'order_no',
+        'status',
+        'currency',
+        'subtotal',
+        'discount_total',
+        'shipping_total',
+        'tax_total',
+        'total',
+        'ordered_at',
+        'payment_method',
+        'payment_status',
+        'payment_gateway',
+        'payment_ref',
+        'paid_at',
+        'meta',
+    ];
+
     protected $casts = [
+        'subtotal' => 'decimal:2',
+        'discount_total' => 'decimal:2',
+        'shipping_total' => 'decimal:2',
+        'tax_total' => 'decimal:2',
+        'total' => 'decimal:2',
         'ordered_at' => 'datetime',
-        'status' => OrderStatus::class,
+        'paid_at' => 'datetime',
+        'meta' => 'array',
     ];
 
     public function customer()
@@ -48,7 +76,7 @@ class Order extends Model
     {
         return $this->hasMany(\App\Models\Payment::class);
     }
-    
+
     public function getSummaryItemsAttribute(): string
     {
         // make sure items loaded (OrderResource already eager loads items.product)

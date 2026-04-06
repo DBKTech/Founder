@@ -22,20 +22,27 @@ class WooClient
     {
         $url = $this->baseUrl() . '/wp-json/wc/v3/' . ltrim($endpoint, '/');
 
-        $response = Http::withBasicAuth(
-                $this->integration->api_key,
-                $this->integration->api_secret
-            )
-            ->acceptJson()
-            ->timeout(30)
-            ->$method($url, $query);
+        $query = array_merge($query, [
+            'consumer_key' => $this->integration->api_key,
+            'consumer_secret' => $this->integration->api_secret,
+        ]);
+
+        $request = Http::acceptJson()->timeout(30);
+
+        if (app()->environment('local')) {
+            $request = $request->withoutVerifying();
+        }
+        
+        $response = $request->$method($url, $query);
 
         IntegrationLog::create([
             'integration_id' => $this->integration->id,
             'direction' => 'outbound',
             'event_type' => 'woo_api_' . $method,
             'request_url' => $url,
-            'request_headers' => json_encode(['Accept' => 'application/json']),
+            'request_headers' => json_encode([
+                'Accept' => 'application/json',
+            ]),
             'request_body' => json_encode($query),
             'response_code' => $response->status(),
             'response_body' => $response->body(),
@@ -47,15 +54,20 @@ class WooClient
 
     public function testConnection(): array
     {
-        $response = $this->request('get', 'system_status');
+        $response = $this->request('get', 'orders', [
+            'per_page' => 1,
+            'orderby' => 'date',
+            'order' => 'desc',
+        ]);
 
         return [
             'ok' => $response->successful(),
             'status' => $response->status(),
             'data' => $response->json(),
+            'raw_body' => $response->body(),
             'message' => $response->successful()
                 ? 'WooCommerce connection successful.'
-                : ($response->json('message') ?: 'WooCommerce connection failed.'),
+                : ($response->body() ?: 'WooCommerce connection failed.'),
         ];
     }
 
@@ -63,8 +75,10 @@ class WooClient
     {
         $response = $this->request('get', 'orders', $params);
 
-        if (! $response->successful()) {
-            throw new \Exception($response->json('message') ?: 'Failed to fetch Woo orders.');
+        if (!$response->successful()) {
+            throw new \Exception(
+                'Woo getOrders failed. HTTP ' . $response->status() . ' | Body: ' . $response->body()
+            );
         }
 
         return $response->json();
@@ -74,8 +88,10 @@ class WooClient
     {
         $response = $this->request('get', 'orders/' . $wooOrderId);
 
-        if (! $response->successful()) {
-            throw new \Exception($response->json('message') ?: 'Failed to fetch Woo order.');
+        if (!$response->successful()) {
+            throw new \Exception(
+                'Woo getOrder failed. HTTP ' . $response->status() . ' | Body: ' . $response->body()
+            );
         }
 
         return $response->json();

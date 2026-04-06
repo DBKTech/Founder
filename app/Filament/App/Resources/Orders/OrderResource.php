@@ -29,8 +29,7 @@ class OrderResource extends Resource
 
         return parent::getEloquentQuery()
             ->with(['customer', 'shipment', 'items.product'])
-            ->when($user?->tenant_id, fn (Builder $q) => $q->where('tenant_id', $user->tenant_id))
-            ->when($user?->isSeller(), fn (Builder $q) => $q->where('placed_by_user_id', $user->id));
+            ->when($user?->tenant_id, fn(Builder $q) => $q->where('tenant_id', $user->tenant_id));
     }
 
     public static function form(Schema $schema): Schema
