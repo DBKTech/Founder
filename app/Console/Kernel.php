@@ -14,12 +14,12 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             Integration::query()
                 ->where('platform', 'woocommerce')
-                ->whereIn('status', ['connected', 'disconnected', 'failed'])
+                ->where('status', 'connected')
                 ->chunkById(100, function ($integrations) {
                     foreach ($integrations as $integration) {
                         PollWooOrdersJob::dispatch($integration->id);
                     }
                 });
-        })->everyFiveMinutes();
+        })->everyMinute()->withoutOverlapping();
     }
 }

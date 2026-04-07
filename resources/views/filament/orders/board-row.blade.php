@@ -16,10 +16,10 @@
         $tn = $shipment->tracking_number;
         $trackingUrl = match (strtolower((string) $shipment->courier_code)) {
             'poslaju' => 'https://www.pos.com.my/track-trace/?track-trace-number=' . urlencode($tn),
-            'jnt'     => 'https://www.jtexpress.my/tracking/' . urlencode($tn),
-            'gdex'    => 'https://www.gdexpress.com/track/?consignmentno=' . urlencode($tn),
-            'dhl'     => 'https://www.dhl.com/my-en/home/tracking.html?tracking-id=' . urlencode($tn),
-            default   => null,
+            'jnt' => 'https://www.jtexpress.my/tracking/' . urlencode($tn),
+            'gdex' => 'https://www.gdexpress.com/track/?consignmentno=' . urlencode($tn),
+            'dhl' => 'https://www.dhl.com/my-en/home/tracking.html?tracking-id=' . urlencode($tn),
+            default => null,
         };
     }
 
@@ -58,7 +58,7 @@
             {{-- NAME --}}
             <div style="width:360px;">
                 <div style="font-weight:600; color:#2563eb;">
-                    {{ $customer?->name ?? '-' }}
+                    {{ $record->display_customer_name ?? '-' }}
                 </div>
 
                 <div style="font-size:14px; margin-top:4px;">
@@ -70,12 +70,12 @@
                 </div>
 
                 <div style="font-size:14px; margin-top:8px;">
-                    {{ $customer?->phone ?? '-' }}
+                    {{ $record->display_customer_phone ?? '-' }}
                 </div>
 
-                @if(!empty($customer?->address))
+                @if(!empty($record->display_customer_address) && $record->display_customer_address !== '-')
                     <div style="font-size:14px; margin-top:4px;">
-                        {{ $customer->address }}
+                        {{ $record->display_customer_address }}
                     </div>
                 @endif
             </div>
@@ -129,34 +129,18 @@
 
                         <div style="width:100%;">
                             @if($isDetails)
-                                <x-filament::button
-                                    size="sm"
-                                    class="{{ $btnClass }}"
-                                    style="width:100%;"
-                                    color="{{ $btn['color'] }}"
-                                    :outlined="$btn['outlined']"
-                                    tag="a"
-                                    href="{{ $detailsUrl }}"
-                                >
+                                <x-filament::button size="sm" class="{{ $btnClass }}" style="width:100%;"
+                                    color="{{ $btn['color'] }}" :outlined="$btn['outlined']" tag="a" href="{{ $detailsUrl }}">
                                     {{ $a['label'] ?? 'Order Details' }}
                                 </x-filament::button>
                             @else
-                                <form
-                                    method="POST"
+                                <form method="POST"
                                     action="{{ route('app.orders.workflow.handle', ['order' => $record->id, 'action' => $a['key']]) }}"
-                                    style="width:100%;"
-                                    @if(!empty($a['confirm']))
-                                        onsubmit="return confirm(@js($a['confirm']))"
-                                    @endif
-                                >
+                                    style="width:100%;" @if(!empty($a['confirm'])) onsubmit="return confirm(@js($a['confirm']))"
+                                    @endif>
                                     @csrf
-                                    <x-filament::button
-                                        size="sm"
-                                        class="{{ $btnClass }}"
-                                        style="width:100%;"
-                                        color="{{ $btn['color'] }}"
-                                        :outlined="$btn['outlined']"
-                                    >
+                                    <x-filament::button size="sm" class="{{ $btnClass }}" style="width:100%;"
+                                        color="{{ $btn['color'] }}" :outlined="$btn['outlined']">
                                         {{ $a['label'] }}
                                     </x-filament::button>
                                 </form>

@@ -111,7 +111,7 @@ class WooOrderMapper
 
     protected function parseDate(?string $value): ?string
     {
-        if (! $value) {
+        if (!$value) {
             return null;
         }
 
@@ -151,22 +151,26 @@ class WooOrderMapper
     protected function resolveCustomer(Integration $integration, array $payload): ?Customer
     {
         $tenantId = $integration->tenant_id;
-        $email = data_get($payload, 'billing.email');
-        $firstName = data_get($payload, 'billing.first_name');
-        $lastName = data_get($payload, 'billing.last_name');
-        $phone = data_get($payload, 'billing.phone');
 
-        if (! $email && ! $phone) {
+        $email = trim((string) data_get($payload, 'billing.email', ''));
+        $firstName = trim((string) data_get($payload, 'billing.first_name', ''));
+        $lastName = trim((string) data_get($payload, 'billing.last_name', ''));
+        $company = trim((string) data_get($payload, 'billing.company', ''));
+        $phone = trim((string) data_get($payload, 'billing.phone', ''));
+
+        if ($email === '' && $phone === '') {
             return null;
         }
 
         $customer = Customer::query()->firstOrNew([
             'tenant_id' => $tenantId,
-            'email' => $email ?: Str::uuid()->toString() . '@placeholder.local',
+            'email' => $email !== '' ? $email : Str::uuid()->toString() . '@placeholder.local',
         ]);
 
-        $customer->name = trim($firstName . ' ' . $lastName) ?: 'Woo Customer';
-        $customer->phone = $phone;
+        $customer->name = trim($firstName . ' ' . $lastName)
+            ?: ($company !== '' ? $company : 'Woo Customer');
+
+        $customer->phone = $phone !== '' ? $phone : $customer->phone;
         $customer->save();
 
         return $customer;

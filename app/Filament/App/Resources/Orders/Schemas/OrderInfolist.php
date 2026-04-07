@@ -16,8 +16,12 @@ class OrderInfolist
                 TextEntry::make('order_no')
                     ->label('Order No'),
 
-                TextEntry::make('customer.name')
+                TextEntry::make('display_customer_name')
                     ->label('Customer')
+                    ->placeholder('-'),
+
+                TextEntry::make('display_customer_phone')
+                    ->label('Phone')
                     ->placeholder('-'),
 
                 TextEntry::make('status')
@@ -64,7 +68,7 @@ class OrderInfolist
                         TextEntry::make('shipment.label_url')
                             ->label('Label URL')
                             ->placeholder('-')
-                            ->url(fn ($record) => $record->shipment?->label_url)
+                            ->url(fn($record) => $record->shipment?->label_url)
                             ->openUrlInNewTab(),
 
                         RepeatableEntry::make('shipment.events')
@@ -82,7 +86,7 @@ class OrderInfolist
                                     ->placeholder('-'),
                             ])
                             ->columns(3)
-                            ->visible(fn ($record) => (bool) $record->shipment?->exists),
+                            ->visible(fn($record) => (bool) $record->shipment?->exists),
                     ])
                     ->columns(3),
             ]);

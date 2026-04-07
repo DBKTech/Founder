@@ -9,7 +9,6 @@ use App\Models\Tenant;
 
 class Order extends Model
 {
-
     use BelongsToTenant;
 
     protected $guarded = [];
@@ -47,6 +46,13 @@ class Order extends Model
         'meta' => 'array',
     ];
 
+    protected $appends = [
+        'summary_items',
+        'display_customer_name',
+        'display_customer_phone',
+        'display_customer_address',
+    ];
+
     public function customer()
     {
         return $this->belongsTo(\App\Models\Customer::class);
@@ -79,18 +85,69 @@ class Order extends Model
 
     public function getSummaryItemsAttribute(): string
     {
-        // make sure items loaded (OrderResource already eager loads items.product)
         $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
 
         if ($items->isEmpty()) {
             return '-';
         }
 
-        // Example output: "Sabun Maman x2, Serum Booster x1"
         return $items
             ->take(3)
-            ->map(fn($i) => ($i->title ?? 'Item') . ' x' . (int) $i->qty)
+            ->map(fn ($i) => ($i->title ?? 'Item') . ' x' . (int) $i->qty)
             ->implode(', ')
             . ($items->count() > 3 ? '…' : '');
+    }
+
+    public function getDisplayCustomerNameAttribute(): string
+    {
+        $billing = data_get($this->meta, 'billing', []);
+
+        $fullName = trim(collect([
+            data_get($billing, 'first_name'),
+            data_get($billing, 'last_name'),
+        ])->filter()->implode(' '));
+
+        if ($fullName !== '') {
+            return $fullName;
+        }
+
+        $company = trim((string) data_get($billing, 'company', ''));
+
+        if ($company !== '') {
+            return $company;
+        }
+
+        return $this->customer?->name ?? 'Walk-in Customer';
+    }
+
+    public function getDisplayCustomerPhoneAttribute(): string
+    {
+        $billingPhone = trim((string) data_get($this->meta, 'billing.phone', ''));
+
+        if ($billingPhone !== '') {
+            return $billingPhone;
+        }
+
+        return $this->customer?->phone ?? '-';
+    }
+
+    public function getDisplayCustomerAddressAttribute(): string
+    {
+        $billing = data_get($this->meta, 'billing', []);
+
+        $parts = array_filter([
+            trim((string) data_get($billing, 'address_1', '')),
+            trim((string) data_get($billing, 'address_2', '')),
+            trim((string) data_get($billing, 'city', '')),
+            trim((string) data_get($billing, 'state', '')),
+            trim((string) data_get($billing, 'postcode', '')),
+            trim((string) data_get($billing, 'country', '')),
+        ]);
+
+        if (! empty($parts)) {
+            return implode(', ', $parts);
+        }
+
+        return $this->customer?->address ?? '-';
     }
 }

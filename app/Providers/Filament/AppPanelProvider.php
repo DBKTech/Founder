@@ -37,6 +37,7 @@ class AppPanelProvider extends PanelProvider
                 Dashboard::class,
                 \App\Filament\App\Pages\OrderCheckout::class,
                 \App\Filament\App\Pages\OrderSummary::class,
+                \App\Filament\App\Pages\WooCommerceIntegration::class,
             ])
             ->discoverWidgets(in: app_path('Filament/App/Widgets'), for: 'App\Filament\App\Widgets')
             ->widgets([
