@@ -44,6 +44,7 @@ class Order extends Model
         'ordered_at' => 'datetime',
         'paid_at' => 'datetime',
         'meta' => 'array',
+        'status' => OrderStatus::class,
     ];
 
     protected $appends = [

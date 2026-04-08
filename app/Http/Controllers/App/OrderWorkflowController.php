@@ -5,39 +5,47 @@ namespace App\Http\Controllers\App;
 use App\Enums\OrderStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
-use App\Models\Shipment;
 use App\Models\ShipmentEvent;
+use App\Services\Couriers\CourierManager;
 use Filament\Notifications\Notification;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class OrderWorkflowController extends Controller
 {
-    public function handle(Request $request, Order $order, string $action)
-    {
+    public function handle(
+        Request $request,
+        Order $order,
+        string $action,
+        CourierManager $courierManager
+    ): RedirectResponse {
         abort_unless($request->user()?->tenant_id === $order->tenant_id, 403);
 
-        DB::transaction(function () use ($request, $order, $action) {
-            match ($action) {
-                // board-row keys
-                'approval'       => $this->approve($order),
-                'push-courier'   => $this->pushCourier($order),
-                'print-awb'      => $this->printAwb($order),     // NEW
-                'reprint-awb'    => $this->reprintAwb($order),
-                'cancel-awb'     => $this->cancelAwb($order),
+        $response = DB::transaction(function () use ($order, $action, $courierManager) {
+            return match ($action) {
+                'approval' => $this->approve($order),
+                'push-courier' => $this->pushCourier($order, $courierManager),
+                'print-awb' => $this->printAwb($order),
+                'reprint-awb' => $this->reprintAwb($order),
+                'cancel-awb' => $this->cancelAwb($order, $courierManager),
 
                 'mark-delivered' => $this->markDelivered($order),
-                'mark-returned'  => $this->markReturned($order),
+                'mark-returned' => $this->markReturned($order),
 
-                'reject'         => $this->reject($order),
-                'cancel'         => $this->cancel($order),      // OPTIONAL
+                'reject' => $this->reject($order),
+                'cancel' => $this->cancel($order),
                 'delivery-order' => $this->deliveryOrder($order),
 
-                'sync-woo'       => $this->syncWoo($order),
+                'sync-woo' => $this->syncWoo($order),
 
                 default => abort(404),
             };
         });
+
+        if ($response instanceof RedirectResponse) {
+            return $response;
+        }
 
         Notification::make()
             ->title('Order updated')
@@ -47,63 +55,68 @@ class OrderWorkflowController extends Controller
         return back();
     }
 
-    // -----------------------------
-    // Core transitions (new statuses)
-    // -----------------------------
-
     protected function approve(Order $order): void
     {
-        // Draft -> Approved
-        if ($order->status !== OrderStatus::Draft) {
+        if ((string) $order->status !== OrderStatus::Draft->value) {
             abort(403, 'Invalid transition');
         }
 
-        $order->update(['status' => OrderStatus::Approved]);
+        $order->update([
+            'status' => OrderStatus::Approved,
+        ]);
     }
 
     /**
      * Approved -> UnprintAwb
-     * Creates shipment + tracking if needed (simulate "pushed to courier")
-     * NOTE: integrate courier API later.
+     * Create shipment through provider.
      */
-    protected function pushCourier(Order $order): void
+    protected function pushCourier(Order $order, CourierManager $courierManager): RedirectResponse
     {
-        if (!in_array($order->status, [OrderStatus::Approved, OrderStatus::UnprintAwb], true)) {
+        if ((string) $order->status !== OrderStatus::Approved->value) {
             abort(403, 'Invalid transition');
         }
 
-        $shipment = $order->shipment ?: Shipment::create([
-            'order_id' => $order->id,
+        $provider = $courierManager->provider('sendparcelpro');
+
+        $result = $provider->createShipment($order);
+
+        if (!($result['success'] ?? false)) {
+            return back()->with('danger', 'Failed to create shipment.');
+        }
+
+        $shipment = $order->shipment()->updateOrCreate(
+            ['order_id' => $order->id],
+            [
+                'tenant_id' => $order->tenant_id,
+                'courier_code' => $result['courier_code'] ?? 'sendparcelpro',
+                'service_code' => $result['service_code'] ?? 'standard',
+                'tracking_number' => $result['tracking_number'] ?? null,
+                'label_url' => $result['label_url'] ?? null,
+                'status' => $result['status'] ?? 'created',
+                'shipped_at' => now(),
+                'meta' => $result['raw'] ?? [],
+            ]
+        );
+
+        ShipmentEvent::create([
             'tenant_id' => $order->tenant_id,
+            'shipment_id' => $shipment->id,
             'status' => 'created',
         ]);
 
-        // If no tracking, generate placeholder tracking (until real courier integration)
-        if (empty($shipment->tracking_number)) {
-            $shipment->update([
-                'tracking_number' => $shipment->tracking_number ?: ('TMP-' . strtoupper(str()->random(10))),
-                'status' => 'awb_created',
-                'shipped_at' => now(),
-            ]);
+        $order->update([
+            'status' => OrderStatus::UnprintAwb->value,
+        ]);
 
-            ShipmentEvent::create([
-                'tenant_id' => $order->tenant_id,
-                'shipment_id' => $shipment->id,
-                'status' => 'awb_created',
-            ]);
-        }
-
-        // After pushing, order becomes UnprintAwb
-        $order->update(['status' => OrderStatus::UnprintAwb]);
+        return back()->with('success', "Shipment created. Tracking: {$shipment->tracking_number}");
     }
 
     /**
      * UnprintAwb -> Pending (COD) OR OnTheMove (online)
-     * This represents "AWB printed / ready, picked up / moving"
      */
     protected function printAwb(Order $order): void
     {
-        if ($order->status !== OrderStatus::UnprintAwb) {
+        if ((string) $order->status !== OrderStatus::UnprintAwb->value) {
             abort(403, 'Invalid transition');
         }
 
@@ -113,12 +126,10 @@ class OrderWorkflowController extends Controller
             abort(403, 'No AWB / tracking number');
         }
 
-        // Mark printed (if you have column)
         if (schema_has_column('orders', 'awb_printed_at')) {
             $order->awb_printed_at = now();
         }
 
-        // Shipment event (optional)
         $shipment->update([
             'status' => 'awb_printed',
         ]);
@@ -129,14 +140,22 @@ class OrderWorkflowController extends Controller
             'status' => 'awb_printed',
         ]);
 
-        // Move order to COD pending OR online on_the_move
-        $order->status = $this->isCod($order) ? OrderStatus::Pending : OrderStatus::OnTheMove;
+        $order->status = $this->isCod($order)
+            ? OrderStatus::Pending
+            : OrderStatus::OnTheMove;
+
         $order->save();
     }
 
     protected function markDelivered(Order $order): void
     {
-        if (!in_array($order->status, [OrderStatus::Pending, OrderStatus::OnTheMove, OrderStatus::Completed], true)) {
+        if (
+            !in_array((string) $order->status, [
+                OrderStatus::Pending->value,
+                OrderStatus::OnTheMove->value,
+                OrderStatus::Completed->value,
+            ], true)
+        ) {
             abort(403, 'Invalid transition');
         }
 
@@ -157,12 +176,20 @@ class OrderWorkflowController extends Controller
             'status' => 'delivered',
         ]);
 
-        $order->update(['status' => OrderStatus::Completed]);
+        $order->update([
+            'status' => OrderStatus::Completed,
+        ]);
     }
 
     protected function markReturned(Order $order): void
     {
-        if (!in_array($order->status, [OrderStatus::Pending, OrderStatus::OnTheMove, OrderStatus::Completed], true)) {
+        if (
+            !in_array((string) $order->status, [
+                OrderStatus::Pending->value,
+                OrderStatus::OnTheMove->value,
+                OrderStatus::Completed->value,
+            ], true)
+        ) {
             abort(403, 'Invalid transition');
         }
 
@@ -182,54 +209,83 @@ class OrderWorkflowController extends Controller
             'status' => 'returned',
         ]);
 
-        $order->update(['status' => OrderStatus::Returned]);
+        $order->update([
+            'status' => OrderStatus::Returned,
+        ]);
     }
 
     protected function reject(Order $order): void
     {
-        // can reject from Draft/Approved/UnprintAwb only (adjust if you want)
-        if (!in_array($order->status, [OrderStatus::Draft, OrderStatus::Approved, OrderStatus::UnprintAwb], true)) {
+        if (
+            !in_array((string) $order->status, [
+                OrderStatus::Draft->value,
+                OrderStatus::Approved->value,
+                OrderStatus::UnprintAwb->value,
+            ], true)
+        ) {
             abort(403, 'Invalid transition');
         }
 
-        $order->update(['status' => OrderStatus::Rejected]);
+        $order->update([
+            'status' => OrderStatus::Rejected,
+        ]);
     }
 
     protected function cancel(Order $order): void
     {
-        // optional cancel action
-        if (in_array($order->status, [OrderStatus::Completed, OrderStatus::Returned], true)) {
+        if (
+            in_array((string) $order->status, [
+                OrderStatus::Completed->value,
+                OrderStatus::Returned->value,
+            ], true)
+        ) {
             abort(403, 'Invalid transition');
         }
-
-        $order->update(['status' => OrderStatus::Cancelled]);
+        $order->update([
+            'status' => OrderStatus::Cancelled,
+        ]);
     }
 
-    // -----------------------------
-    // AWB actions
-    // -----------------------------
-
-    protected function cancelAwb(Order $order): void
+    protected function cancelAwb(Order $order, CourierManager $courierManager): void
     {
-        // Per your spec: UnprintAwb should NOT have cancel-awb button
-        // But guard it anyway
-        if ($order->status === OrderStatus::UnprintAwb) {
+        if ((string) $order->status === OrderStatus::UnprintAwb->value) {
             abort(403, 'Cancel AWB not allowed for Unprint AWB status');
         }
 
-        if (!in_array($order->status, [OrderStatus::Pending, OrderStatus::OnTheMove, OrderStatus::Completed], true)) {
+        if (
+            !in_array((string) $order->status, [
+                OrderStatus::Pending->value,
+                OrderStatus::OnTheMove->value,
+                OrderStatus::Completed->value,
+            ], true)
+        ) {
             abort(403, 'Invalid transition');
         }
 
         $shipment = $order->shipment;
 
-        if (!$shipment || empty($shipment->tracking_number)) {
+        if (!$shipment) {
+            abort(403, 'Shipment missing');
+        }
+
+        if (empty($shipment->tracking_number)) {
             abort(403, 'No AWB / tracking number');
         }
 
+        $provider = $courierManager->provider($shipment->courier_code ?? 'sendparcelpro');
+
+        $result = $provider->cancelShipment($shipment);
+
+        if (!($result['success'] ?? false)) {
+            abort(500, 'Failed to cancel shipment');
+        }
+
         $shipment->update([
-            'status' => 'cancelled',
+            'status' => $result['status'] ?? 'cancelled',
             'tracking_number' => null,
+            'meta' => array_merge($shipment->meta ?? [], [
+                'cancel_response' => $result['raw'] ?? [],
+            ]),
         ]);
 
         ShipmentEvent::create([
@@ -238,27 +294,34 @@ class OrderWorkflowController extends Controller
             'status' => 'cancelled',
         ]);
 
-        // After cancel AWB, put it back to Approved (so you can push again)
-        $order->update(['status' => OrderStatus::Approved]);
+        $order->update([
+            'status' => OrderStatus::Approved,
+        ]);
     }
 
-    protected function reprintAwb(Order $order): void
+    protected function reprintAwb(Order $order): RedirectResponse
     {
-        if (!in_array($order->status, [OrderStatus::Pending, OrderStatus::OnTheMove, OrderStatus::Completed], true)) {
+        if (
+            !in_array((string) $order->status, [
+                OrderStatus::Pending->value,
+                OrderStatus::OnTheMove->value,
+                OrderStatus::Completed->value,
+            ], true)
+        ) {
             abort(403, 'Invalid transition');
         }
 
         $shipment = $order->shipment;
 
         if (!$shipment || empty($shipment->tracking_number)) {
-            abort(403, 'No AWB / tracking number');
+            return back()->with('danger', 'No AWB / tracking number.');
         }
 
-        // Placeholder: implement when you have label_url / awb pdf url
-        Notification::make()
-            ->title('Re-print AWB not implemented yet')
-            ->warning()
-            ->send();
+        if (empty($shipment->label_url)) {
+            return back()->with('danger', 'No AWB label available.');
+        }
+
+        return redirect()->away($shipment->label_url);
     }
 
     protected function deliveryOrder(Order $order): void
@@ -271,44 +334,33 @@ class OrderWorkflowController extends Controller
 
     protected function syncWoo(Order $order): void
     {
-        $order->update(['last_synced_at' => now()]);
+        $order->update([
+            'last_synced_at' => now(),
+        ]);
     }
 
-    // -----------------------------
-    // Helpers
-    // -----------------------------
-
-    /**
-     * Make this robust so it won't break if your column name differs.
-     * Update this once you confirm your actual payment fields.
-     */
     protected function isCod(Order $order): bool
     {
-        // 1) boolean column
         if (isset($order->is_cod)) {
             return (bool) $order->is_cod;
         }
 
-        // 2) payment_method column
         if (isset($order->payment_method)) {
             $pm = strtolower((string) $order->payment_method);
+
             return in_array($pm, ['cod', 'cash_on_delivery', 'cash-on-delivery'], true);
         }
 
-        // 3) payment_type column
         if (isset($order->payment_type)) {
             $pt = strtolower((string) $order->payment_type);
+
             return in_array($pt, ['cod', 'cash_on_delivery', 'cash-on-delivery'], true);
         }
 
-        return false; // default assume online
+        return false;
     }
 }
 
-/**
- * Tiny helper to avoid fatal if column doesn't exist.
- * If you don't like this, delete the awb_printed_at section above.
- */
 if (!function_exists('schema_has_column')) {
     function schema_has_column(string $table, string $column): bool
     {

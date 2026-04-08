@@ -5,21 +5,6 @@ use App\Http\Controllers\App\OrderWorkflowController;
 use App\Http\Middleware\ResolveTenantContext;
 use App\Http\Controllers\BillplzPaymentController;
 use App\Http\Controllers\App\WooIntegrationController;
-use App\Services\Integrations\WooCommerce\WooSyncService;
-use App\Models\Integration;
-use App\Services\Integrations\WooCommerce\WooClient;
-use App\Models\IntegrationLog;
-
-
-Route::middleware(['auth'])
-    ->prefix('app/workflow')
-    ->name('app.')
-    ->group(function () {
-        Route::post(
-            '/orders/{order}/{action}',
-            [OrderWorkflowController::class, 'handle']
-        )->name('orders.workflow.handle');
-    });
 
 Route::middleware(['auth', ResolveTenantContext::class])
     ->prefix('app/workflow')
@@ -54,6 +39,27 @@ Route::post('/payments/billplz/callback', [BillplzPaymentController::class, 'cal
 
 Route::get('/payments/billplz/redirect/{order}', [BillplzPaymentController::class, 'redirect'])
     ->name('payments.billplz.redirect');
+
+Route::get('/shipments/fake-label/{tracking}', function (string $tracking) {
+    return response("
+        <html>
+            <head>
+                <title>Fake AWB Label</title>
+            </head>
+            <body style='font-family: Arial, sans-serif; padding: 40px;'>
+                <h1>Fake AWB Label</h1>
+                <p><strong>Tracking Number:</strong> {$tracking}</p>
+                <p><strong>Courier:</strong> SendParcel Pro (Fake)</p>
+                <p><strong>Status:</strong> Created</p>
+                <hr>
+                <p>This is a fake label for local development.</p>
+                <script>window.print();</script>
+            </body>
+        </html>
+    ", 200, [
+        'Content-Type' => 'text/html',
+    ]);
+})->name('shipments.fake-label');
 
 Route::get('/', function () {
     return view('welcome');

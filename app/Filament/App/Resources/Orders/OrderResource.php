@@ -28,8 +28,13 @@ class OrderResource extends Resource
         $user = auth()->user();
 
         return parent::getEloquentQuery()
-            ->with(['customer', 'shipment', 'items.product'])
-            ->when($user?->tenant_id, fn(Builder $q) => $q->where('tenant_id', $user->tenant_id));
+            ->with([
+                'customer',
+                'shipment',
+                'items.product',
+            ])
+            ->orderByDesc('ordered_at')
+            ->orderByDesc('id');
     }
 
     public static function form(Schema $schema): Schema

@@ -42,4 +42,9 @@ return [
         'base_url' => env('BILLPLZ_BASE_URL', 'https://www.billplz.com/api/v3'),
         'card_gateway_code' => env('BILLPLZ_CARD_GATEWAY_CODE', 'BP-BILLPLZ1'),
     ],
+
+    'sendparcel' => [
+        'base_url' => env('SENDPARCEL_BASE_URL'),
+        'api_key' => env('SENDPARCEL_API_KEY'),
+    ],
 ];

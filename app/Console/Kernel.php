@@ -20,6 +20,6 @@ class Kernel extends ConsoleKernel
                         PollWooOrdersJob::dispatch($integration->id);
                     }
                 });
-        })->everyMinute()->withoutOverlapping();
+        })->everyMinute();
     }
 }
