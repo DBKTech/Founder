@@ -48,7 +48,7 @@
   width: 1360px;
   min-width: 1360px;
   display: grid;
-  grid-template-columns: 40px 60px minmax(0, 320px) minmax(0, 220px) 170px 240px 220px;
+  grid-template-columns: 40px 60px minmax(0, 320px) minmax(0, 220px) 170px 260px 220px;
   column-gap: 24px;
   align-items: start;
   box-sizing: border-box;
@@ -73,6 +73,12 @@
 }
 
 .orders-col--name {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.orders-col--payment {
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -139,6 +145,9 @@
 }
 
 .orders-badge-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 10px;
 }
 
@@ -151,24 +160,37 @@
 
 /* payment */
 .orders-detail {
-  display: flex;
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
   gap: 10px;
   margin-bottom: 10px;
-  align-items: center;
+  align-items: start;
 }
 
 .orders-detail > span:first-child {
-  width: 72px;
-  flex-shrink: 0;
+  min-width: 0;
   font-size: 13px;
   font-weight: 600;
   color: #374151;
 }
 
 .orders-detail > span:last-child {
+  min-width: 0;
+  max-width: 100%;
   font-size: 14px;
   font-weight: 500;
   color: #111827;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.orders-tracking {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.45;
 }
 
 /* actions */
@@ -179,8 +201,33 @@
   width: 100%;
 }
 
+.orders-tracking-copy {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563eb;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.orders-tracking-copy:hover {
+  text-decoration: underline;
+}
+
+.orders-tracking-empty {
+  font-size: 14px;
+  font-weight: 500;
+  color: #111827;
+}
+
 .orders-action-form {
   width: 100%;
+  margin: 0;
 }
 
 .orders-action-btn {
@@ -195,7 +242,7 @@
   .orders-board-grid {
     width: 1300px;
     min-width: 1300px;
-    grid-template-columns: 40px 56px minmax(0, 300px) minmax(0, 210px) 165px 225px 210px;
+    grid-template-columns: 40px 56px minmax(0, 300px) minmax(0, 210px) 165px 245px 210px;
     column-gap: 20px;
   }
 

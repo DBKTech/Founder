@@ -21,5 +21,7 @@ class Kernel extends ConsoleKernel
                     }
                 });
         })->everyMinute();
+
+        $schedule->command('shipments:sync')->everyFiveMinutes()->withoutOverlapping();
     }
 }

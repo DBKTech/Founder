@@ -57,7 +57,7 @@ class OrderWorkflowController extends Controller
 
     protected function approve(Order $order): void
     {
-        if ((string) $order->status !== OrderStatus::Draft->value) {
+        if ($order->status !== OrderStatus::Draft) {
             abort(403, 'Invalid transition');
         }
 
@@ -66,13 +66,9 @@ class OrderWorkflowController extends Controller
         ]);
     }
 
-    /**
-     * Approved -> UnprintAwb
-     * Create shipment through provider.
-     */
     protected function pushCourier(Order $order, CourierManager $courierManager): RedirectResponse
     {
-        if ((string) $order->status !== OrderStatus::Approved->value) {
+        if ($order->status !== OrderStatus::Approved) {
             abort(403, 'Invalid transition');
         }
 
@@ -105,18 +101,15 @@ class OrderWorkflowController extends Controller
         ]);
 
         $order->update([
-            'status' => OrderStatus::UnprintAwb->value,
+            'status' => OrderStatus::UnprintAwb,
         ]);
 
         return back()->with('success', "Shipment created. Tracking: {$shipment->tracking_number}");
     }
 
-    /**
-     * UnprintAwb -> Pending (COD) OR OnTheMove (online)
-     */
-    protected function printAwb(Order $order): void
+    protected function printAwb(Order $order): RedirectResponse
     {
-        if ((string) $order->status !== OrderStatus::UnprintAwb->value) {
+        if ($order->status !== OrderStatus::UnprintAwb) {
             abort(403, 'Invalid transition');
         }
 
@@ -145,15 +138,21 @@ class OrderWorkflowController extends Controller
             : OrderStatus::OnTheMove;
 
         $order->save();
+
+        if (!empty($shipment->label_url)) {
+            return redirect()->away($shipment->label_url);
+        }
+
+        return back()->with('warning', 'AWB printed, but no label URL found.');
     }
 
     protected function markDelivered(Order $order): void
     {
         if (
-            !in_array((string) $order->status, [
-                OrderStatus::Pending->value,
-                OrderStatus::OnTheMove->value,
-                OrderStatus::Completed->value,
+            !in_array($order->status, [
+                OrderStatus::Pending,
+                OrderStatus::OnTheMove,
+                OrderStatus::Completed,
             ], true)
         ) {
             abort(403, 'Invalid transition');
@@ -184,10 +183,10 @@ class OrderWorkflowController extends Controller
     protected function markReturned(Order $order): void
     {
         if (
-            !in_array((string) $order->status, [
-                OrderStatus::Pending->value,
-                OrderStatus::OnTheMove->value,
-                OrderStatus::Completed->value,
+            !in_array($order->status, [
+                OrderStatus::Pending,
+                OrderStatus::OnTheMove,
+                OrderStatus::Completed,
             ], true)
         ) {
             abort(403, 'Invalid transition');
@@ -217,10 +216,10 @@ class OrderWorkflowController extends Controller
     protected function reject(Order $order): void
     {
         if (
-            !in_array((string) $order->status, [
-                OrderStatus::Draft->value,
-                OrderStatus::Approved->value,
-                OrderStatus::UnprintAwb->value,
+            !in_array($order->status, [
+                OrderStatus::Draft,
+                OrderStatus::Approved,
+                OrderStatus::UnprintAwb,
             ], true)
         ) {
             abort(403, 'Invalid transition');
@@ -234,13 +233,14 @@ class OrderWorkflowController extends Controller
     protected function cancel(Order $order): void
     {
         if (
-            in_array((string) $order->status, [
-                OrderStatus::Completed->value,
-                OrderStatus::Returned->value,
+            in_array($order->status, [
+                OrderStatus::Completed,
+                OrderStatus::Returned,
             ], true)
         ) {
             abort(403, 'Invalid transition');
         }
+
         $order->update([
             'status' => OrderStatus::Cancelled,
         ]);
@@ -248,15 +248,15 @@ class OrderWorkflowController extends Controller
 
     protected function cancelAwb(Order $order, CourierManager $courierManager): void
     {
-        if ((string) $order->status === OrderStatus::UnprintAwb->value) {
+        if ($order->status === OrderStatus::UnprintAwb) {
             abort(403, 'Cancel AWB not allowed for Unprint AWB status');
         }
 
         if (
-            !in_array((string) $order->status, [
-                OrderStatus::Pending->value,
-                OrderStatus::OnTheMove->value,
-                OrderStatus::Completed->value,
+            !in_array($order->status, [
+                OrderStatus::Pending,
+                OrderStatus::OnTheMove,
+                OrderStatus::Completed,
             ], true)
         ) {
             abort(403, 'Invalid transition');
@@ -302,10 +302,10 @@ class OrderWorkflowController extends Controller
     protected function reprintAwb(Order $order): RedirectResponse
     {
         if (
-            !in_array((string) $order->status, [
-                OrderStatus::Pending->value,
-                OrderStatus::OnTheMove->value,
-                OrderStatus::Completed->value,
+            !in_array($order->status, [
+                OrderStatus::Pending,
+                OrderStatus::OnTheMove,
+                OrderStatus::Completed,
             ], true)
         ) {
             abort(403, 'Invalid transition');
